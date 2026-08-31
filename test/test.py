@@ -1,6 +1,4 @@
-import os
+import wmi
 
-if os.name == 'posix':
-    print('linux')
-elif os.name == 'windows':
-    print('windows')
+c = wmi.WMI()
+
