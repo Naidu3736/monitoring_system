@@ -1,54 +1,38 @@
 import wmi
+from pc_monitoring.monitor import Monitor, DeviceType
+from typing import List, Set, Dict
 
-class MonitorWindows:
-    def __init__(self, logger = None):
+class MonitorWindows(Monitor):
+    WINDOWS_CLASSES = {
+        DeviceType.KEYBOARD: 'Win32_Keyboard',
+        DeviceType.MOUSE: 'Win32_PointingDevice',
+        DeviceType.MONITOR: 'Win32_DesktopMonitor',
+        DeviceType.DISK: 'Win32_DiskDrive',
+        DeviceType.USB_DEVICE: 'Win32_UsbHub',
+        DeviceType.USB_STORAGE: 'Win32_DiskDrive',
+        DeviceType.NETWORK: 'Win32_NetworkAdapter',
+        DeviceType.SOUND: 'Win32_SoundDevice',
+        DeviceType.BLUETOOTH: 'Win32_BluetoothDevice',
+    }
+
+    def __init__(self, device_types: List[DeviceType] = None):
+        super.__init__()
+        if device_types:
+            self.set_device_types(device_types)
+
         self.wmi = wmi.WMI()
-        self.logger = logger
-        self.connected_devices = {}
-        self.devices_classes = [
-            'Win32_UsbHub',             # Hub's usb
-            'Win32_PnPEntity',          # Dispositivos plug and play
-            'Win32_DiskDrive',          # Discos y usb's
-            'Win32_Keyboard',           # Teclados
-            'Win32_PointingDevice',     # Ratones y dispositivos apuntadores
-            'Win32_NetworkAdapter',     # Adaptadores de red 
-            'Win32_SoundDevice',        # Dispositivos de audio
-            'Win32_BluetoothDevice',    # Dispositivos Bluetooth
-            'Win32_DesktopMonitor',     # Pantallas
-        ]
 
-    def _scan_devices(self):
-        self.connected_devices = {}
+    def start_monitor(self):
+        pass
 
-        for device_class in self.devices_classes:
-            try:
-                # print(f"\n--- {device_class} ---")
-                wql = f"SELECT * FROM {device_class}"
-                items = self.wmi.query(wql)
-                for item in items:
-                    try:
-                        device_id = (
-                            getattr(item, "PNPDeviceID", None)
-                            or getattr(item, "DeviceID", None)
-                            or getattr(item, "Name", None)
-                        )
-                        device_name = (
-                            getattr(item, "Name", None)
-                            or getattr(item, "Caption", None)
-                            or "Unknown"
-                        )
-                        if device_id:
-                            self.connected_devices[device_id] = device_name
-                    except Exception:
-                        continue
-            except Exception:
-                continue
+    def stop_monitor(self):
+        pass
+
+    def on_device_connected(self, device_id):
+        pass
+
+    def on_device_disconnected(self, device_id):
+        pass
 
     def get_connected_devices(self):
-        self._scan_devices()
-
-        for _, device_name in self.connected_devices.items():
-            print(device_name)
-
-monitor = MonitorWindows()
-monitor.get_connected_devices()
+        pass

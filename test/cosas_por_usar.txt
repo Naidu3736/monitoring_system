@@ -1,0 +1,13 @@
+self.alert_method: List[Alert] = []
+
+@abstractmethod
+def add_alert_method(self, alert_method: Alert):
+    pass
+
+@abstractmethod
+def remove_alert_method(self, alert_method: Alert):
+    pass
+
+@abstractmethod
+def send_all_alerts(self):
+    pass

@@ -1,0 +1,170 @@
+Dispositivo: /dev/dri/card0
+  Nombre: /dev/dri/card0
+  Tipo: drm_minor
+  Subsistema: drm
+--------------------------------------------------
+Dispositivo: /dev/dri/renderD129
+  Nombre: /dev/dri/renderD129
+  Tipo: drm_minor
+  Subsistema: drm
+--------------------------------------------------
+Dispositivo: /dev/snd/pcmC0D3p
+  Nombre: /dev/snd/pcmC0D3p
+  Tipo: pcm
+  Subsistema: sound
+--------------------------------------------------
+Dispositivo: /dev/snd/pcmC0D7p
+  Nombre: /dev/snd/pcmC0D7p
+  Tipo: pcm
+  Subsistema: sound
+--------------------------------------------------
+Dispositivo: /dev/snd/pcmC0D8p
+  Nombre: /dev/snd/pcmC0D8p
+  Tipo: pcm
+  Subsistema: sound
+--------------------------------------------------
+Dispositivo: /dev/snd/pcmC0D9p
+  Nombre: /dev/snd/pcmC0D9p
+  Tipo: pcm
+  Subsistema: sound
+--------------------------------------------------
+Dispositivo: /dev/nvme0n1
+  Nombre: HP SSD FX700 2TB
+  Tipo: disk
+  Subsistema: block
+--------------------------------------------------
+Dispositivo: /dev/nvme0n1p1
+  Nombre: HP SSD FX700 2TB
+  Tipo: partition
+  Subsistema: block
+--------------------------------------------------
+Dispositivo: /dev/nvme0n1p2
+  Nombre: HP SSD FX700 2TB
+  Tipo: partition
+  Subsistema: block
+--------------------------------------------------
+Dispositivo: /dev/nvme0n1p3
+  Nombre: HP SSD FX700 2TB
+  Tipo: partition
+  Subsistema: block
+--------------------------------------------------
+Dispositivo: /dev/nvme0n1p4
+  Nombre: HP SSD FX700 2TB
+  Tipo: partition
+  Subsistema: block
+--------------------------------------------------
+Dispositivo: /dev/nvme0n1p5
+  Nombre: HP SSD FX700 2TB
+  Tipo: partition
+  Subsistema: block
+--------------------------------------------------
+Dispositivo: /dev/nvme0n1p6
+  Nombre: HP SSD FX700 2TB
+  Tipo: partition
+  Subsistema: block
+--------------------------------------------------
+Dispositivo: /dev/dri/card1
+  Nombre: /dev/dri/card1
+  Tipo: drm_minor
+  Subsistema: drm
+--------------------------------------------------
+Dispositivo: /dev/dri/renderD128
+  Nombre: /dev/dri/renderD128
+  Tipo: drm_minor
+  Subsistema: drm
+--------------------------------------------------
+Dispositivo: /dev/snd/pcmC1D3p
+  Nombre: /dev/snd/pcmC1D3p
+  Tipo: pcm
+  Subsistema: sound
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/001/001
+  Nombre: xHCI_Host_Controller
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/001/002
+  Nombre: HP_Wide_Vision_HD_Camera
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/001/003
+  Nombre: Wireless_Device
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/002/001
+  Nombre: xHCI_Host_Controller
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/003/001
+  Nombre: xHCI_Host_Controller
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/003/002
+  Nombre: G502_HERO_Gaming_Mouse
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/004/001
+  Nombre: xHCI_Host_Controller
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/snd/pcmC3D0c
+  Nombre: /dev/snd/pcmC3D0c
+  Tipo: pcm
+  Subsistema: sound
+--------------------------------------------------
+Dispositivo: /dev/snd/pcmC2D0c
+  Nombre: /dev/snd/pcmC2D0c
+  Tipo: pcm
+  Subsistema: sound
+--------------------------------------------------
+Dispositivo: /dev/snd/pcmC2D0p
+  Nombre: /dev/snd/pcmC2D0p
+  Tipo: pcm
+  Subsistema: sound
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/005/001
+  Nombre: xHCI_Host_Controller
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/006/001
+  Nombre: xHCI_Host_Controller
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/007/001
+  Nombre: xHCI_Host_Controller
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/008/001
+  Nombre: xHCI_Host_Controller
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/008/002
+  Nombre: AULA-F98X
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/bus/usb/009/001
+  Nombre: xHCI_Host_Controller
+  Tipo: usb_device
+  Subsistema: usb
+--------------------------------------------------
+Dispositivo: /dev/gpiochip0
+  Nombre: /dev/gpiochip0
+  Tipo: gpio_chip
+  Subsistema: gpio
+--------------------------------------------------
+Dispositivo: /dev/zram0
+  Nombre: /dev/zram0
+  Tipo: disk
+  Subsistema: block
+--------------------------------------------------
