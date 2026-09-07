@@ -4,22 +4,13 @@ from typing import List, Dict, Set, Optional
 
 class MonitorLinux(Monitor):
     LINUX_FILTERS = {
-        DeviceType.KEYBOARD: 'usb',
-        DeviceType.MOUSE: 'usb' ,
-        DeviceType.MONITOR: 'drm',
-        DeviceType.DISK: 'block',
-        DeviceType.USB_DEVICE: 'usb',
-        DeviceType.USB_STORAGE: 'block',
-        DeviceType.NETWORK: 'net',
-        DeviceType.SOUND: 'sound',
-        DeviceType.BLUETOOTH: 'bluetooth',
+        DeviceType.KEYBOARD: {'subsystem': 'usb', 'device_type': 'usb_device'},
+        DeviceType.MOUSE: {'subsystem': 'usb', 'device_type': 'usb_device'},
+        DeviceType.MONITOR: {'subsystem': 'drm', 'device_type': 'drm_minor'},
     }
 
-    def __init__(self, device_types: List[DeviceType]):
-        super().__init__()
-        if device_types:
-            self.set_device_types(device_types)
-        
+    def __init__(self):
+        super().__init__()        
         self._context = pyudev.Context()
         self._monitor = pyudev.Monitor.from_netlink(context=self._context)
         self._observer: Optional[pyudev.MonitorObserver] = None
@@ -28,23 +19,29 @@ class MonitorLinux(Monitor):
 
 
     def __set_filters_by(self):
-        if not self._device_types:
-            return
+        for device_type in DeviceType:
+            filter_config = self.LINUX_FILTERS.get(device_type)
+            subsystem = filter_config.get('subsystem')
+            devtype = filter_config.get('device_type')
 
-        for device_type in self._device_types:
-            subsystem = self.LINUX_FILTERS[device_type]
-            print(device_type)
-            self._monitor.filter_by(subsystem=subsystem)
+            if devtype:
+                self._monitor.filter_by(subsystem=subsystem, device_type=devtype)
+            else:
+                self._monitor.filter_by(subsystem=subsystem)
 
     def __handle_event(self, device: pyudev.Device):
-        if device.action not in ['add', 'remove']:
+        if device.action not in ['add', 'remove', 'change']:
             return
 
-        if device.action == 'add':
-            self.on_device_connected(device)
+        device_info = None
+        
+        if (device.action == 'change' and device.subsystem != 'drm'):
+            return
 
-        elif device.action == 'remove':
-            self.on_device_disconnected(device)
+        else:
+            device_info = self._get_device_info(device)
+
+        self._print_device_info(device_info)
         
     
     def start_monitor(self):
@@ -60,7 +57,6 @@ class MonitorLinux(Monitor):
         self._observer.start()
         self._is_running = True
 
-
     def stop_monitor(self):
         if not self._is_running:
             return
@@ -73,28 +69,23 @@ class MonitorLinux(Monitor):
 
         self._is_running = False
 
-    def on_device_connected(self, device: pyudev.Device):
-        device_info = self._get_device_info(device)
+    def _on_device_connected(self):
+        pass
 
-        print(f"Name: {device_info['name']}")
-        print(f"Action: {device_info['action']}")
-        print(f"Node: {device_info['node']}")
-        print(f"Subsystem: {device_info['subsystem']}")
-        print(f"Device type: {device_info['devtype']}")
-        print(f"System name: {device_info['sys_name']}")
-
-    def on_device_disconnected(self, device: pyudev.Device):
-        device_info = self._get_device_info(device)
-
-        print(f"Name: {device_info['name']}")
-        print(f"Action: {device_info['action']}")
-        print(f"Node: {device_info['node']}")
-        print(f"Subsystem: {device_info['subsystem']}")
-        print(f"Device type: {device_info['devtype']}")
-        print(f"System name: {device_info['sys_name']}")
+    def _on_device_desconnected(self):
+        pass
 
     def get_connected_devices(self):
         pass
+
+    def _print_device_info(self, device_info):
+        print(f"Name: {device_info['name']}")
+        print(f"Action: {device_info['action']}")
+        print(f"Node: {device_info['node']}")
+        print(f"Subsystem: {device_info['subsystem']}")
+        print(f"Device type: {device_info['devtype']}")
+        print(f"System name: {device_info['sys_name']}")
+        print(f"-" * 50)
 
     def _get_device_info(self, device: pyudev.Device) -> dict:
         name = (
@@ -115,11 +106,7 @@ class MonitorLinux(Monitor):
         }
         
 
-lm = MonitorLinux([
-    DeviceType.MOUSE,
-    DeviceType.KEYBOARD,
-    DeviceType.DISK
-])
+lm = MonitorLinux()
 
 try:
     lm.start_monitor()

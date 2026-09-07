@@ -6,30 +6,11 @@ class DeviceType(Enum):
     KEYBOARD = "keyboard"
     MOUSE = "mouse"
     MONITOR = "monitor"
-    DISK = "disk"
-    USB_DEVICE = "usb_device"
-    USB_STORAGE = "usb_storage"
-    NETWORK = "network"
-    SOUND = "sound"
-    BLUETOOTH = "bluetooth"
 
 class Monitor(ABC):
     def __init__(self):
-        self._device_types: List[DeviceType] = list()
         self._devices: Set[str] = set()
         self._is_running = False
-
-    def set_device_types(self, device_types: List[DeviceType]):
-        self._device_types = device_types
-
-    def get_device_types(self) -> List[DeviceType]:
-        return self._device_types.copy()
-
-    def add_device_type(self, device_type: DeviceType):
-        if device_type not in self._device_types:
-            self._device_types.append(device_type)
-
-        self._device_types.append(DeviceType)
 
     @abstractmethod
     def start_monitor(self):
@@ -40,11 +21,11 @@ class Monitor(ABC):
         pass
 
     @abstractmethod
-    def on_device_connected(self, device):
+    def _on_device_connected(self):
         pass
 
     @abstractmethod
-    def on_device_disconnected(self, device):
+    def _on_device_desconnected(self):
         pass
 
     @abstractmethod

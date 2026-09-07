@@ -7,12 +7,6 @@ class MonitorWindows(Monitor):
         DeviceType.KEYBOARD: 'Win32_Keyboard',
         DeviceType.MOUSE: 'Win32_PointingDevice',
         DeviceType.MONITOR: 'Win32_DesktopMonitor',
-        DeviceType.DISK: 'Win32_DiskDrive',
-        DeviceType.USB_DEVICE: 'Win32_UsbHub',
-        DeviceType.USB_STORAGE: 'Win32_DiskDrive',
-        DeviceType.NETWORK: 'Win32_NetworkAdapter',
-        DeviceType.SOUND: 'Win32_SoundDevice',
-        DeviceType.BLUETOOTH: 'Win32_BluetoothDevice',
     }
 
     def __init__(self, device_types: List[DeviceType] = None):
