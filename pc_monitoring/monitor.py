@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Set, List, Any
+from typing import Dict
 from enum import Enum
 
 class DeviceType(Enum):
@@ -9,7 +9,7 @@ class DeviceType(Enum):
 
 class Monitor(ABC):
     def __init__(self):
-        self._devices: Set[str] = set()
+        self._devices: Dict[str, dict] = {}
         self._is_running = False
 
     @abstractmethod

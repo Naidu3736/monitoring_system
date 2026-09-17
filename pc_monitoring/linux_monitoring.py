@@ -1,6 +1,9 @@
 import pyudev
 from monitor import Monitor, DeviceType
-from typing import List, Dict, Set, Optional
+from threading import Lock
+from typing import List, Optional
+
+from client.pc_client import ClientPC
 
 class MonitorLinux(Monitor):
     LINUX_FILTERS = {
@@ -9,13 +12,16 @@ class MonitorLinux(Monitor):
         DeviceType.MONITOR: {'subsystem': 'drm', 'device_type': 'drm_minor'},
     }
 
-    def __init__(self):
+    def __init__(self, client: Optional[ClientPC] = None):
         super().__init__()        
         self._context = pyudev.Context()
         self._monitor = pyudev.Monitor.from_netlink(context=self._context)
         self._observer: Optional[pyudev.MonitorObserver] = None
+        self._devices_lock = Lock()
+        self._client = client
 
         self.__set_filters_by()
+        self.__load_connected_devices()
 
 
     def __set_filters_by(self):
@@ -29,21 +35,42 @@ class MonitorLinux(Monitor):
             else:
                 self._monitor.filter_by(subsystem=subsystem)
 
+    def __load_connected_devices(self):
+        seen_devices = set()
+
+        for filter_config in self.LINUX_FILTERS.values():
+            devices = self._context.list_devices(
+                subsystem=filter_config['subsystem'],
+                DEVTYPE=filter_config.get('device_type'),
+            )
+
+            for device in devices:
+                device_id = self.__get_device_id(device)
+                if device_id in seen_devices:
+                    continue
+
+                seen_devices.add(device_id)
+                device_info = self._get_device_info(device)
+                self._on_device_connected(device_info)
+
     def __handle_event(self, device: pyudev.Device):
         if device.action not in ['add', 'remove', 'change']:
             return
 
-        device_info = None
-        
-        if (device.action == 'change' and device.subsystem != 'drm'):
+        if device.action == 'change' and device.subsystem != 'drm':
             return
 
-        else:
-            device_info = self._get_device_info(device)
+        device_info = self._get_device_info(device)
 
-        self._print_device_info(device_info)
+        if device.action == 'remove':
+            self._on_device_desconnected(self.__get_device_id(device))
+        else:
+            self._on_device_connected(device_info)
+
+        # self._print_device_info(device_info)
+        if self._client is not None:
+            self._client.send_report(device_info)
         
-    
     def start_monitor(self):
         if self._is_running:
             return
@@ -69,14 +96,18 @@ class MonitorLinux(Monitor):
 
         self._is_running = False
 
-    def _on_device_connected(self):
-        pass
+    def _on_device_connected(self, device_info: dict):
+        device_id = self.__get_device_id(device_info)
+        with self._devices_lock:
+            self._devices[device_id] = dict(device_info)
 
-    def _on_device_desconnected(self):
-        pass
+    def _on_device_desconnected(self, device_id: str):
+        with self._devices_lock:
+            self._devices.pop(device_id, None)
 
-    def get_connected_devices(self):
-        pass
+    def get_connected_devices(self) -> List[dict]:
+        with self._devices_lock:
+            return [dict(device) for device in self._devices.values()]
 
     def _print_device_info(self, device_info):
         print(f"Name: {device_info['name']}")
@@ -86,6 +117,12 @@ class MonitorLinux(Monitor):
         print(f"Device type: {device_info['devtype']}")
         print(f"System name: {device_info['sys_name']}")
         print(f"-" * 50)
+
+    @staticmethod
+    def __get_device_id(device) -> str:
+        if isinstance(device, dict):
+            return device['sys_name']
+        return device.sys_name
 
     def _get_device_info(self, device: pyudev.Device) -> dict:
         name = (
@@ -104,14 +141,3 @@ class MonitorLinux(Monitor):
             'devtype': device.device_type or "unknow",
             'sys_name': device.sys_name
         }
-        
-
-lm = MonitorLinux()
-
-try:
-    lm.start_monitor()
-    while True:
-        1 + 1
-
-except KeyboardInterrupt:
-    lm.stop_monitor()
