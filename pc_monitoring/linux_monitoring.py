@@ -1,9 +1,9 @@
 import pyudev
-from monitor import Monitor, DeviceType
 from threading import Lock
 from typing import List, Optional
 
-from client.pc_client import ClientPC
+from pc_monitoring.client.pc_client import ClientPC
+from pc_monitoring.monitor import DeviceType, Monitor
 
 class MonitorLinux(Monitor):
     LINUX_FILTERS = {
@@ -60,10 +60,19 @@ class MonitorLinux(Monitor):
         if device.action == 'change' and device.subsystem != 'drm':
             return
 
-        device_info = self._get_device_info(device)
+        device_id = self.__get_device_id(device)
+        if device.action == 'remove':
+            with self._devices_lock:
+                device_info = dict(self._devices.get(device_id, {}))
+
+            if not device_info:
+                device_info = self._get_device_info(device)
+        else:
+            device_info = self._get_device_info(device)
 
         if device.action == 'remove':
-            self._on_device_desconnected(self.__get_device_id(device))
+            device_info['action'] = 'remove'
+            self._on_device_desconnected(device_id)
         else:
             self._on_device_connected(device_info)
 
@@ -110,7 +119,7 @@ class MonitorLinux(Monitor):
             return [dict(device) for device in self._devices.values()]
 
     def _print_device_info(self, device_info):
-        print(f"Name: {device_info['name']}")
+        print(f"Name: {device_info['device_name']}")
         print(f"Action: {device_info['action']}")
         print(f"Node: {device_info['node']}")
         print(f"Subsystem: {device_info['subsystem']}")
@@ -134,10 +143,7 @@ class MonitorLinux(Monitor):
         )
 
         return {
-            'name': name,
+            'device_name': name,
             'action': device.action,
-            'node': device.device_node or 'N/A',
-            'subsystem': device.subsystem,
-            'devtype': device.device_type or "unknow",
             'sys_name': device.sys_name
         }

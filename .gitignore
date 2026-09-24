@@ -1,5 +1,8 @@
 # Files enviroments
 .venv/
+.env
+.env.*
+!.env.example
 
 # IDE
 .vscode/

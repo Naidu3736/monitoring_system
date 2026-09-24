@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional
 
 import wmi
 
-from client.pc_client import ClientPC
-from monitor import DeviceType, Monitor
+from pc_monitoring.client.pc_client import ClientPC
+from pc_monitoring.monitor import DeviceType, Monitor
 
 
 class MonitorWindows(Monitor):
@@ -110,11 +110,8 @@ class MonitorWindows(Monitor):
     def _get_device_info(self, device: Any, device_type: DeviceType) -> Dict[str, Any]:
         device_id = self.__get_device_id(device)
         return {
-            'name': self.__get_property(device, 'Name') or device_id,
+            'device_name': self.__get_property(device, 'Name') or device_id,
             'action': 'change',
-            'node': self.__get_property(device, 'DeviceID') or 'N/A',
-            'subsystem': 'wmi',
-            'devtype': device_type.value,
             'sys_name': device_id,
         }
 

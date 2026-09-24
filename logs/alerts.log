@@ -1,0 +1,24 @@
+2026-09-24T03:52:47-0600 INFO Alerta recibida device=PC_CCOX_XX message=Acción 'remove' en el dispositivo 'AULA-F98X/8-1'
+2026-09-24T03:52:48-0600 INFO Alerta enviada channel=TelegramAlert device=PC_CCOX_XX
+2026-09-24T03:52:49-0600 INFO Alerta enviada channel=EmailAlert device=PC_CCOX_XX
+2026-09-24T03:52:52-0600 INFO Alerta recibida device=PC_CCOX_XX message=Acción 'add' en el dispositivo 'AULA-F98X/8-1'
+2026-09-24T03:52:52-0600 INFO Alerta enviada channel=TelegramAlert device=PC_CCOX_XX
+2026-09-24T03:52:54-0600 INFO Alerta enviada channel=EmailAlert device=PC_CCOX_XX
+2026-09-24T03:54:59-0600 INFO Alerta recibida device=PC_CCOX_XX message=Acción 'remove' en el dispositivo 'G502_HERO_Gaming_Mouse/3-1'
+2026-09-24T03:54:59-0600 INFO Alerta enviada channel=TelegramAlert device=PC_CCOX_XX
+2026-09-24T03:55:01-0600 INFO Alerta enviada channel=EmailAlert device=PC_CCOX_XX
+2026-09-24T03:55:04-0600 INFO Alerta recibida device=PC_CCOX_XX message=Acción 'add' en el dispositivo 'G502_HERO_Gaming_Mouse/3-1'
+2026-09-24T03:55:04-0600 INFO Alerta enviada channel=TelegramAlert device=PC_CCOX_XX
+2026-09-24T03:55:06-0600 INFO Alerta enviada channel=EmailAlert device=PC_CCOX_XX
+2026-09-24T03:55:51-0600 INFO Alerta recibida device=PC_CCOX_XX message=Acción 'remove' en el dispositivo 'NICEHCK_NK1_MAX/6-1'
+2026-09-24T03:55:51-0600 INFO Alerta enviada channel=TelegramAlert device=PC_CCOX_XX
+2026-09-24T03:55:53-0600 INFO Alerta enviada channel=EmailAlert device=PC_CCOX_XX
+2026-09-24T03:56:09-0600 INFO Alerta recibida device=PC_CCOX_XX message=Acción 'add' en el dispositivo 'NICEHCK_NK1_MAX/6-1'
+2026-09-24T03:56:10-0600 INFO Alerta enviada channel=TelegramAlert device=PC_CCOX_XX
+2026-09-24T03:56:11-0600 INFO Alerta enviada channel=EmailAlert device=PC_CCOX_XX
+2026-09-24T04:02:06-0600 INFO Alerta recibida device=PC_CCOX_XX message=Acción 'remove' en el dispositivo 'G502_HERO_Gaming_Mouse/3-1'
+2026-09-24T04:02:06-0600 INFO Alerta enviada channel=TelegramAlert device=PC_CCOX_XX
+2026-09-24T04:02:08-0600 INFO Alerta enviada channel=EmailAlert device=PC_CCOX_XX
+2026-09-24T04:02:25-0600 INFO Alerta recibida device=PC_CCOX_XX message=Acción 'add' en el dispositivo 'G502_HERO_Gaming_Mouse/3-1'
+2026-09-24T04:02:26-0600 INFO Alerta enviada channel=TelegramAlert device=PC_CCOX_XX
+2026-09-24T04:02:27-0600 INFO Alerta enviada channel=EmailAlert device=PC_CCOX_XX
