@@ -1,6 +1,7 @@
 from threading import Event, Lock, Thread
 from typing import Any, Dict, List, Optional
 
+import pythoncom
 import wmi
 
 from pc_monitoring.client.pc_client import ClientPC
@@ -66,30 +67,34 @@ class MonitorWindows(Monitor):
         self._is_running = False
 
     def __consume_watcher(self, device_type: DeviceType, action: str):
-        connection = wmi.WMI()
-        watcher = connection.watch_for(
-            notification_type=action,
-            wmi_class=self.WINDOWS_CLASSES[device_type],
-        )
+        pythoncom.CoInitialize()
+        try:
+            connection = wmi.WMI()
+            watcher = connection.watch_for(
+                notification_type=action,
+                wmi_class=self.WINDOWS_CLASSES[device_type],
+            )
 
-        while not self._stop_event.is_set():
-            try:
-                device = watcher(timeout_ms=1000)
-            except wmi.x_wmi_timed_out:
-                continue
+            while not self._stop_event.is_set():
+                try:
+                    device = watcher(timeout_ms=1000)
+                except wmi.x_wmi_timed_out:
+                    continue
 
-            device_info = self._get_device_info(device, device_type)
-            device_info['action'] = {
-                'Creation': 'add',
-                'Deletion': 'remove',
-                'Modification': 'change',
-            }[action]
-            if action == 'Deletion':
-                self._on_device_disconnected(device_info['sys_name'])
-            else:
-                self._on_device_connected(device_info)
+                device_info = self._get_device_info(device, device_type)
+                device_info['action'] = {
+                    'Creation': 'add',
+                    'Deletion': 'remove',
+                    'Modification': 'change',
+                }[action]
+                if action == 'Deletion':
+                    self._on_device_disconnected(device_info['sys_name'])
+                else:
+                    self._on_device_connected(device_info)
 
-            self.__send_report(device_info)
+                self.__send_report(device_info)
+        finally:
+            pythoncom.CoUninitialize()
 
     def _on_device_connected(self, device_info: dict):
         device_id = device_info['sys_name']
