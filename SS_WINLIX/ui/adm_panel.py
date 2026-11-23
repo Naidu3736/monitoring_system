@@ -39,7 +39,7 @@ class WidgetTopologiaLabs(QWidget):
         top_lay.setSpacing(12)
 
         self.lbl_breadcrumb = QLabel("Selecciona una sala para explorar sus filas y equipos")
-        self.lbl_breadcrumb.setStyleSheet("color: #e2e8f0; font-size: 12px; font-weight: 600;")
+        self.lbl_breadcrumb.setProperty("class", "breadcrumb-label")
         top_lay.addWidget(self.lbl_breadcrumb)
         top_lay.addStretch()
 
@@ -160,12 +160,10 @@ class WidgetTopologiaLabs(QWidget):
             "Esta sala aún no tiene filas.\nAgrega la primera abajo (ej. FILA A)."
         )
         self.lbl_empty_filas.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_empty_filas.setStyleSheet(
-            "color: #64748b; font-size: 12px; padding: 14px; "
-            "background-color: #070a12; border: 1px dashed #1e293b; border-radius: 8px;"
-        )
+        self.lbl_empty_filas.setWordWrap(True)
+        self.lbl_empty_filas.setProperty("class", "empty-state")
         self.lbl_empty_filas.setVisible(False)
-        lay.addWidget(self.lbl_empty_filas)
+        lay.addWidget(self.lbl_empty_filas, stretch=1)
 
         row_add = QHBoxLayout()
         row_add.setSpacing(6)
@@ -239,12 +237,9 @@ class WidgetTopologiaLabs(QWidget):
         )
         self.lbl_empty_pcs.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_empty_pcs.setWordWrap(True)
-        self.lbl_empty_pcs.setStyleSheet(
-            "color: #64748b; font-size: 12px; padding: 14px; "
-            "background-color: #070a12; border: 1px dashed #1e293b; border-radius: 8px;"
-        )
+        self.lbl_empty_pcs.setProperty("class", "empty-state")
         self.lbl_empty_pcs.setVisible(False)
-        lay.addWidget(self.lbl_empty_pcs)
+        lay.addWidget(self.lbl_empty_pcs, stretch=1)
 
         row_add = QHBoxLayout()
         row_add.setSpacing(6)

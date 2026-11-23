@@ -90,8 +90,8 @@ class VistaLogin(QWidget):
         b_lay.addSpacing(14)
 
         separador = QFrame()
+        separador.setObjectName("LoginDivider")
         separador.setFixedHeight(1)
-        separador.setStyleSheet("background-color: #1a2234; border: none;")
         b_lay.addWidget(separador)
 
         b_lay.addSpacing(10)

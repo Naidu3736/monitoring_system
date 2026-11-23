@@ -29,10 +29,11 @@ Aplicación de escritorio en **Python / PyQt6** con **Hub TCP embebido** para la
 - **Registro de Red**: tabla por estación con la IP/puerto TCP del agente conectado, estado del enlace (`CONECTADO`, `EN ESPERA DE AGENTE`, `DESCONECTADO`, `ALERTA ACTIVA`) y contador de sockets conectados al Hub.
 
 ### 4. Configuración del Sistema (`ui/config_view.py` y `ui/adm_panel.py`)
-Organizada en tres sub-pestañas dentro del panel principal:
+Organizada en cuatro sub-pestañas dentro del panel principal:
 - **Salas y Equipos**: editor interactivo de 3 columnas (`Salas` | `Filas` | `Equipos`) que permite crear, renombrar y eliminar salas o filas, dar de alta equipos individualmente, en lote (separados por comas) o con sugerencia correlativa (`+ PC-XX`), y dar de baja seleccionando uno o varios equipos. Persiste automáticamente en `config/laboratorios.json` y sincroniza el monitoreo al instante. También cuenta con acceso directo desde el botón `+ Salas` en el monitoreo.
 - **Operadores y Acceso**: listado de cuentas registradas en `config/usuarios.json` (indicando la sesión actual), alta de nuevos operadores con confirmación de contraseña, cambio de contraseña y eliminación protegida.
 - **Alertas y Hub**: formulario para ver y guardar en `.env` las credenciales de **Bot de Telegram**, **Correo SMTP** (con TLS) y configuración del **Servidor Hub TCP** (`HUB_HOST`, `HUB_PORT`). Los canales de Telegram y SMTP se recargan en caliente al guardar.
+- **Apariencia**: selector entre **Modo Oscuro** (carbón neutro) y **Modo Claro**, aplicado en tiempo real y persistido en `config/preferencias.json`.
 
 ### 5. Hub TCP y Alertas reales (`services/hub_bridge.py` y `monitoring_system-main/hub/`)
 - Servidor TCP no bloqueante (`selectors`) ejecutado en un hilo `QThread` dentro de la aplicación.

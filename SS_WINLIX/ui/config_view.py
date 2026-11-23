@@ -23,11 +23,13 @@ class VistaConfiguracion(QWidget):
     """Vista integral de Configuración del Sistema con sub-pestañas claras."""
 
     topologia_modificada = pyqtSignal()
+    tema_cambiado = pyqtSignal(str)
 
     def __init__(
         self,
         usuario_actual: str,
         datos_laboratorios: dict[str, dict[str, list[str]]],
+        tema_actual: str = "dark",
         hub_thread: HubServerThread | None = None,
         log_callback: Callable[[str], None] | None = None,
         parent: QWidget | None = None,
@@ -35,6 +37,7 @@ class VistaConfiguracion(QWidget):
         super().__init__(parent)
         self.usuario_actual = usuario_actual
         self.datos_laboratorios = datos_laboratorios
+        self.tema_actual = tema_actual
         self.hub_thread = hub_thread
         self.log_callback = log_callback
 
@@ -53,7 +56,7 @@ class VistaConfiguracion(QWidget):
         title_col.addWidget(lbl_titulo)
 
         lbl_sub = QLabel(
-            "Administra la topología de laboratorios, cuentas de operador y canales de alerta."
+            "Administra salas y equipos, operadores, canales de alerta y apariencia."
         )
         lbl_sub.setProperty("class", "page-subtitle")
         lbl_sub.setWordWrap(True)
@@ -74,6 +77,7 @@ class VistaConfiguracion(QWidget):
             ("Salas y Equipos", 0),
             ("Operadores y Acceso", 1),
             ("Alertas y Hub", 2),
+            ("Apariencia", 3),
         ]
         for idx, (texto, stack_idx) in enumerate(pestanas):
             btn = QPushButton(texto)
@@ -94,10 +98,12 @@ class VistaConfiguracion(QWidget):
         self.sub_stack.addWidget(self._crear_tab_topologia())   # 0
         self.sub_stack.addWidget(self._crear_tab_operadores())  # 1
         self.sub_stack.addWidget(self._crear_tab_alertas())     # 2
+        self.sub_stack.addWidget(self._crear_tab_apariencia())  # 3
         root.addWidget(self.sub_stack, stretch=1)
 
         self._cargar_lista_operadores()
         self._cargar_valores_env()
+        self.actualizar_estado_tema(self.tema_actual)
 
     def _emitir_log(self, msg: str) -> None:
         if self.log_callback is not None:
@@ -753,3 +759,134 @@ class VistaConfiguracion(QWidget):
             "ok",
         )
         self._emitir_log(f"Configuración de alertas/Hub guardada en .env por '{self.usuario_actual}'.")
+
+    # =========================================================================
+    # PESTAÑA 3: APARIENCIA / TEMA VISUAL
+    # =========================================================================
+    def _crear_tab_apariencia(self) -> QWidget:
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+
+        contenedor = QWidget()
+        contenedor.setObjectName("ScrollContent")
+        lay_root = QVBoxLayout(contenedor)
+        lay_root.setContentsMargins(0, 4, 6, 4)
+        lay_root.setSpacing(16)
+
+        card = QFrame()
+        card.setProperty("class", "config-card")
+        card.setMaximumWidth(820)
+        lay_c = QVBoxLayout(card)
+        lay_c.setContentsMargins(22, 20, 22, 22)
+        lay_c.setSpacing(14)
+
+        lbl_t = QLabel("Tema de la interfaz")
+        lbl_t.setProperty("class", "section-title")
+        lay_c.addWidget(lbl_t)
+
+        lbl_d = QLabel(
+            "Elige entre modo oscuro neutro o modo claro. El cambio se aplica al instante "
+            "y se guarda automáticamente en config/preferencias.json."
+        )
+        lbl_d.setProperty("class", "muted-hint")
+        lbl_d.setWordWrap(True)
+        lay_c.addWidget(lbl_d)
+
+        opciones = QHBoxLayout()
+        opciones.setSpacing(16)
+
+        # Opción 1: Modo Oscuro
+        self.card_tema_dark, self.pill_tema_dark, self.btn_tema_dark = self._crear_tarjeta_tema(
+            titulo="☾  Modo Oscuro",
+            descripcion="Superficies en carbón neutro diseñadas para reducir la fatiga visual en monitoreo continuo.",
+            colores_muestra=("#111113", "#18181b", "#26262b", "#f4f4f5"),
+            clave_tema="dark",
+        )
+        opciones.addWidget(self.card_tema_dark, stretch=1)
+
+        # Opción 2: Modo Claro
+        self.card_tema_light, self.pill_tema_light, self.btn_tema_light = self._crear_tarjeta_tema(
+            titulo="☀  Modo Claro",
+            descripcion="Fondo gris suave y paneles blancos de alto contraste para espacios bien iluminados.",
+            colores_muestra=("#f4f4f5", "#ffffff", "#e4e4e7", "#18181b"),
+            clave_tema="light",
+        )
+        opciones.addWidget(self.card_tema_light, stretch=1)
+
+        lay_c.addLayout(opciones)
+        lay_root.addWidget(card)
+        lay_root.addStretch()
+        scroll.setWidget(contenedor)
+        return scroll
+
+    def _crear_tarjeta_tema(
+        self,
+        titulo: str,
+        descripcion: str,
+        colores_muestra: tuple[str, str, str, str],
+        clave_tema: str,
+    ) -> tuple[QFrame, QLabel, QPushButton]:
+        box = QFrame()
+        box.setProperty("class", "topo-col")
+        lay = QVBoxLayout(box)
+        lay.setContentsMargins(16, 16, 16, 16)
+        lay.setSpacing(10)
+
+        head = QHBoxLayout()
+        lbl = QLabel(titulo)
+        lbl.setProperty("class", "section-title")
+        head.addWidget(lbl)
+        head.addStretch()
+
+        pill = QLabel("Activo")
+        pill.setProperty("class", "status-pill")
+        pill.setProperty("state", "ok")
+        head.addWidget(pill)
+        lay.addLayout(head)
+
+        # Mini muestra de paleta de colores del tema
+        swatches = QHBoxLayout()
+        swatches.setSpacing(6)
+        for hex_color in colores_muestra:
+            sw = QFrame()
+            sw.setFixedSize(36, 22)
+            sw.setStyleSheet(
+                f"background-color: {hex_color}; border: 1px solid #52525b; border-radius: 5px;"
+            )
+            swatches.addWidget(sw)
+        swatches.addStretch()
+        lay.addLayout(swatches)
+
+        lbl_desc = QLabel(descripcion)
+        lbl_desc.setProperty("class", "muted-hint")
+        lbl_desc.setWordWrap(True)
+        lay.addWidget(lbl_desc)
+
+        lay.addStretch()
+
+        btn = QPushButton("Usar este tema")
+        btn.setProperty("class", "btn-primary")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.clicked.connect(partial(self._seleccionar_tema, clave_tema))
+        lay.addWidget(btn)
+
+        return box, pill, btn
+
+    def _seleccionar_tema(self, clave_tema: str) -> None:
+        if clave_tema == self.tema_actual:
+            return
+        self.tema_actual = clave_tema
+        self.actualizar_estado_tema(clave_tema)
+        self.tema_cambiado.emit(clave_tema)
+
+    def actualizar_estado_tema(self, tema: str) -> None:
+        self.tema_actual = tema
+        es_dark = tema == "dark"
+
+        self.pill_tema_dark.setVisible(es_dark)
+        self.btn_tema_dark.setEnabled(not es_dark)
+        self.btn_tema_dark.setText("Tema activo" if es_dark else "Usar modo oscuro")
+
+        self.pill_tema_light.setVisible(not es_dark)
+        self.btn_tema_light.setEnabled(es_dark)
+        self.btn_tema_light.setText("Tema activo" if not es_dark else "Usar modo claro")
