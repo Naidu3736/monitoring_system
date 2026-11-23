@@ -1,4 +1,6 @@
+import json
 import os
+import selectors
 import sys
 import socket
 from pathlib import Path
@@ -21,12 +23,69 @@ from hub.alerts.telegram_alert import TelegramAlert
 from hub.server.server import Server
 
 DEFAULT_LOG_PATH = COLAB_DIR / "logs" / "alerts.log"
+ENV_FILE_PATH = BASE_DIR / ".env"
+
+ENV_KEYS_CONFIG = (
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_USERNAME",
+    "SMTP_PASSWORD",
+    "SMTP_SENDER",
+    "SMTP_RECIPIENT",
+    "SMTP_USE_TLS",
+    "HUB_HOST",
+    "HUB_PORT",
+)
 
 
-def construir_alertas_desde_env() -> tuple[list[Alert], bool, bool]:
-    """Busca variables .env en SS_WIN o en monitoring_system-main."""
-    load_dotenv(BASE_DIR / ".env")
-    load_dotenv(COLAB_DIR / ".env")
+def leer_config_env() -> dict[str, str]:
+    """Lee las variables de configuración actuales desde .env y entorno."""
+    load_dotenv(COLAB_DIR / ".env", override=False)
+    load_dotenv(ENV_FILE_PATH, override=True)
+    return {clave: os.getenv(clave, "").strip() for clave in ENV_KEYS_CONFIG}
+
+
+def guardar_config_env(valores: dict[str, str]) -> Path:
+    """Guarda los valores de configuración en BASE_DIR/.env preservando otras líneas."""
+    lineas_existentes: list[str] = []
+    if ENV_FILE_PATH.exists():
+        lineas_existentes = ENV_FILE_PATH.read_text(encoding="utf-8").splitlines()
+
+    pendientes = dict(valores)
+    nuevas_lineas: list[str] = []
+
+    for linea in lineas_existentes:
+        stripped = linea.strip()
+        if not stripped or stripped.startswith("#") or "=" not in linea:
+            nuevas_lineas.append(linea)
+            continue
+        clave = linea.split("=", 1)[0].strip()
+        if clave in pendientes:
+            val = pendientes.pop(clave).replace("\n", "").replace("\r", "")
+            nuevas_lineas.append(f"{clave}={val}")
+            os.environ[clave] = val
+        else:
+            nuevas_lineas.append(linea)
+
+    for clave, val in pendientes.items():
+        limpio = val.replace("\n", "").replace("\r", "")
+        nuevas_lineas.append(f"{clave}={limpio}")
+        os.environ[clave] = limpio
+
+    ENV_FILE_PATH.write_text("\n".join(nuevas_lineas) + "\n", encoding="utf-8")
+    return ENV_FILE_PATH
+
+
+def construir_alertas_desde_env(override: bool = False) -> tuple[list[Alert], bool, bool]:
+    """Busca variables .env en SS_WIN (prioritario) o en monitoring_system-main."""
+    if override:
+        load_dotenv(COLAB_DIR / ".env", override=True)
+        load_dotenv(ENV_FILE_PATH, override=True)
+    else:
+        load_dotenv(ENV_FILE_PATH, override=False)
+        load_dotenv(COLAB_DIR / ".env", override=False)
 
     alerts: list[Alert] = []
     tiene_tg = False
@@ -80,6 +139,8 @@ class GuiInterceptServer(Server):
         super().__init__(host=host, port=port, alert_manager=alert_manager, timeout=0.5)
         self._bridge = bridge_thread
         self._running = False
+        self._peer_addrs: dict[int, str] = {}
+        self._fd_pc_names: dict[int, str] = {}
 
     def serve_loop(self) -> None:
         self._running = True
@@ -99,8 +160,46 @@ class GuiInterceptServer(Server):
         self._running = False
 
     def _accept(self, sock: socket.socket) -> None:
-        super()._accept(sock)
-        self._bridge.log_signal.emit("Nuevo agente conectado al socket del Hub.")
+        client, addr = sock.accept()
+        client.setblocking(False)
+        fd = client.fileno()
+        peer = f"{addr[0]}:{addr[1]}"
+        self._buffers[fd] = bytearray()
+        self._peer_addrs[fd] = peer
+        self._sel.register(client, selectors.EVENT_READ, self._read)
+        self._bridge.agente_conectado.emit(peer)
+        self._bridge.log_signal.emit(f"Nuevo agente conectado al Hub desde <b>{peer}</b>.")
+
+    def _read(self, sock: socket.socket) -> None:
+        fd = sock.fileno()
+        try:
+            data = sock.recv(4096)
+        except (ConnectionResetError, BrokenPipeError, OSError):
+            self._disconnect(sock)
+            return
+
+        if not data:
+            self._disconnect(sock)
+            return
+
+        buf = self._buffers[fd]
+        buf.extend(data)
+
+        while b"\n" in buf:
+            line, _, rest = buf.partition(b"\n")
+            buf.clear()
+            buf.extend(rest)
+            if line:
+                try:
+                    report = json.loads(line.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    peer = self._peer_addrs.get(fd, "desconocido")
+                    self._bridge.log_signal.emit(
+                        f"<span style='color:#f59e0b;'>Mensaje JSON inválido desde {peer}: {exc}</span>"
+                    )
+                    continue
+                if isinstance(report, dict):
+                    self._on_message(sock, report)
 
     def _on_message(self, sock: socket.socket, report: dict[str, Any]) -> None:
         required_fields = {"pc_name", "device_name", "action", "sys_name"}
@@ -111,11 +210,18 @@ class GuiInterceptServer(Server):
             )
             return
 
-        # Mandar el evento a las tarjetas y tabla de la interfaz 
-        self._bridge.reporte_recibido.emit(dict(report))
+        fd = sock.fileno()
+        pc_name = str(report["pc_name"]).strip().upper()
+        peer = self._peer_addrs.get(fd, "desconocido")
+        self._fd_pc_names[fd] = pc_name
 
-        # Mandar el evento al AlertManager **
-        pc_name = str(report["pc_name"])
+        payload = dict(report)
+        payload["peer"] = peer
+
+        # Mandar el evento a las tarjetas y tabla de la interfaz
+        self._bridge.reporte_recibido.emit(payload)
+
+        # Mandar el evento al AlertManager (Telegram / SMTP / alerts.log)
         mensaje = (
             f"Acción '{report['action']}' en el dispositivo "
             f"'{report['device_name']}/{report['sys_name']}'"
@@ -123,12 +229,30 @@ class GuiInterceptServer(Server):
         entregado = self._alert_manager.process(message=mensaje, device=pc_name)
         self._bridge.alerta_procesada.emit(pc_name, entregado)
 
+    def _disconnect(self, sock: socket.socket) -> None:
+        fd = sock.fileno()
+        peer = self._peer_addrs.pop(fd, "desconocido")
+        pc_name = self._fd_pc_names.pop(fd, "")
+        super()._disconnect(sock)
+        self._bridge.agente_desconectado.emit(pc_name, peer)
+        if pc_name:
+            self._bridge.log_signal.emit(
+                f"<span style='color:#f59e0b;'>Agente <b>{pc_name}</b> ({peer}) desconectado del Hub.</span>"
+            )
+        else:
+            self._bridge.log_signal.emit(
+                f"<span style='color:#94a3b8;'>Conexión de agente ({peer}) cerrada.</span>"
+            )
+
 
 class HubServerThread(QThread):
     reporte_recibido = pyqtSignal(dict)
     alerta_procesada = pyqtSignal(str, bool)
     log_signal = pyqtSignal(str)
     canales_configurados = pyqtSignal(bool, bool)
+    hub_estado_cambiado = pyqtSignal(bool, str)
+    agente_conectado = pyqtSignal(str)
+    agente_desconectado = pyqtSignal(str, str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -156,12 +280,14 @@ class HubServerThread(QThread):
 
         try:
             self._server.start()
+            self.hub_estado_cambiado.emit(True, f"{host}:{port}")
             self.log_signal.emit(
                 f"Hub escuchando agentes en <b>{host}:{port}</b> "
                 f"(Log: <i>monitoring_system-main/logs/{self.log_file_path.name}</i>)"
             )
             self._server.serve_loop()
         except Exception as exc:
+            self.hub_estado_cambiado.emit(False, f"Error puerto {port}")
             self.log_signal.emit(
                 f"<span style='color:#f43f5e;'>No se pudo abrir el puerto {port}: {exc}</span>"
             )
@@ -169,20 +295,18 @@ class HubServerThread(QThread):
             if self._alert_manager is not None:
                 self._alert_manager.close()
 
-    def simular_evento_local(
-        self, pc_name: str, device_name: str, action: str, sys_name: str
-    ) -> None:
-        report = {
-            "pc_name": pc_name,
-            "device_name": device_name,
-            "action": action,
-            "sys_name": sys_name,
-        }
-        self.reporte_recibido.emit(report)
+    def recargar_canales(self) -> tuple[bool, bool]:
+        """Recarga Telegram/SMTP desde .env y actualiza el AlertManager en caliente."""
+        alerts, tiene_tg, tiene_smtp = construir_alertas_desde_env(override=True)
         if self._alert_manager is not None:
-            mensaje = f"Acción '{action}' en el dispositivo '{device_name}/{sys_name}'"
-            entregado = self._alert_manager.process(message=mensaje, device=pc_name)
-            self.alerta_procesada.emit(pc_name, entregado)
+            self._alert_manager._alerts = tuple(alerts)
+        self.canales_configurados.emit(tiene_tg, tiene_smtp)
+        self.log_signal.emit(
+            "Canales de alerta recargados desde .env "
+            f"(Telegram: {'activo' if tiene_tg else 'sin configurar'}, "
+            f"SMTP: {'activo' if tiene_smtp else 'sin configurar'})."
+        )
+        return tiene_tg, tiene_smtp
 
     def detener(self) -> None:
         if self._server is not None:

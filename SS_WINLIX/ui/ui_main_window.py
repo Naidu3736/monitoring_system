@@ -6,42 +6,51 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QScrollArea, QTextEdit,
     QStackedWidget, QButtonGroup, QTableWidget, QTableWidgetItem,
-    QHeaderView, QLineEdit, QMessageBox
+    QHeaderView
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QShortcut, QKeySequence, QColor, QCloseEvent
 
 from ui.card_pc import TarjetaPC
-from ui.adm_panel import DialogoAdminLabs
-from ui.login import RUTA_USUARIOS, hash_password
+from ui.config_view import VistaConfiguracion
+from ui.login import VistaLogin, repolir_widget
 from services.hub_bridge import HubServerThread, DEFAULT_LOG_PATH
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class DashboardPrincipal(QMainWindow):
-    def __init__(self, usuario_actual: str = "admin") -> None:
+    def __init__(self, usuario_actual: str | None = None) -> None:
         super().__init__()
-        self.usuario_actual = usuario_actual
-        self.setWindowTitle(
-            f"Monitoreo de Seguridad de Hardware (BUAP) - Operador: {self.usuario_actual}"
-        )
+        self.usuario_actual: str = usuario_actual or ""
+        self.setWindowTitle("SAPPHIRE SOC — Autenticación de Seguridad (BUAP)")
         self.resize(1360, 780)
+        self.setMinimumSize(1024, 640)
 
-        self.datos_laboratorios: dict[str, dict[str, list[str]]] = self._cargar_config_laboratorios()
+        self.datos_laboratorios: dict[str, dict[str, list[str]]] = {}
         self.tarjetas_map: dict[str, TarjetaPC] = {}
         self.btns_tabs: dict[str, QPushButton] = {}
+        self.peers_por_pc: dict[str, str] = {}
+        self.conexiones_activas: int = 0
         self.pc_seleccionada: str | None = None
         self.pcs_en_alerta: set[str] = set()
         self.fase_parpadeo: bool = False
         self.tiene_tg_configurado: bool = False
         self.tiene_smtp_configurado: bool = False
+        self._sesion_activa: bool = False
+        self.hub_thread: HubServerThread | None = None
+        self.dashboard_root: QWidget | None = None
 
         self.cargar_estilos()
-        self._armar_interfaz()
-        self._actualizar_contadores_kpi()
 
-        # Atajos de teclado: F2 (Menú Izquierdo), F3 (Detalles Derecho), F5 (Estilos)
+        # Stack principal: 0 = Pantalla de Login integrada, 1 = Dashboard
+        self.app_stack = QStackedWidget()
+        self.vista_login = VistaLogin(self)
+        self.vista_login.autenticado.connect(self._al_iniciar_sesion)
+        self.app_stack.addWidget(self.vista_login)
+        self.setCentralWidget(self.app_stack)
+
+        # Atajos globales: F2 (Menú Izquierdo), F3 (Detalles Derecho), F5 (Estilos)
         self.shortcut_sidebar = QShortcut(QKeySequence("F2"), self)
         self.shortcut_sidebar.activated.connect(self._toggle_sidebar)
 
@@ -53,18 +62,72 @@ class DashboardPrincipal(QMainWindow):
 
         self.timer_parpadeo = QTimer(self)
         self.timer_parpadeo.timeout.connect(self._toggle_parpadeo)
+
+        if usuario_actual:
+            self._al_iniciar_sesion(usuario_actual)
+        else:
+            self.vista_login.reiniciar_formulario()
+
+    def _al_iniciar_sesion(self, usuario: str) -> None:
+        self.usuario_actual = usuario
+        self._sesion_activa = True
+        self.setWindowTitle(
+            f"Monitoreo de Seguridad de Hardware (BUAP) - Operador: {self.usuario_actual}"
+        )
+
+        # Limpiar instancia previa del dashboard si existía tras cerrar sesión
+        if self.dashboard_root is not None:
+            self.app_stack.removeWidget(self.dashboard_root)
+            self.dashboard_root.deleteLater()
+            self.dashboard_root = None
+
+        self.datos_laboratorios = self._cargar_config_laboratorios()
+        self.tarjetas_map = {}
+        self.btns_tabs = {}
+        self.peers_por_pc = {}
+        self.conexiones_activas = 0
+        self.pc_seleccionada = None
+        self.pcs_en_alerta = set()
+        self.fase_parpadeo = False
+
+        self.dashboard_root = self._armar_interfaz()
+        self.app_stack.addWidget(self.dashboard_root)
+        self.app_stack.setCurrentWidget(self.dashboard_root)
+        self._actualizar_contadores_kpi()
+
         self.timer_parpadeo.start(450)
 
-        # Arrancar el Hub Server de monitoring_system-main en segundo plano
+        # Arrancar el Hub Server real en segundo plano
         self.hub_thread = HubServerThread()
+        self.vista_config.hub_thread = self.hub_thread
         self.hub_thread.log_signal.connect(self.agregar_log)
         self.hub_thread.canales_configurados.connect(self._actualizar_estado_canales)
+        self.hub_thread.hub_estado_cambiado.connect(self._actualizar_estado_hub)
+        self.hub_thread.agente_conectado.connect(self._al_conectar_agente)
+        self.hub_thread.agente_desconectado.connect(self._al_desconectar_agente)
         self.hub_thread.reporte_recibido.connect(self._procesar_reporte_hub)
         self.hub_thread.alerta_procesada.connect(self._mostrar_resultado_alert_manager)
         self.hub_thread.start()
 
-        # Cargar historial de monitoring_system-main/logs/alerts.log
+        # Cargar historial real de monitoring_system-main/logs/alerts.log
         self._cargar_logs_previos()
+
+    def _cerrar_sesion(self) -> None:
+        self.timer_parpadeo.stop()
+        if self.hub_thread is not None:
+            self.hub_thread.detener()
+            self.hub_thread = None
+
+        self._sesion_activa = False
+        self.usuario_actual = ""
+        self.setWindowTitle("SAPPHIRE SOC — Autenticación de Seguridad (BUAP)")
+        self.app_stack.setCurrentWidget(self.vista_login)
+        self.vista_login.reiniciar_formulario()
+
+        if self.dashboard_root is not None:
+            self.app_stack.removeWidget(self.dashboard_root)
+            self.dashboard_root.deleteLater()
+            self.dashboard_root = None
 
     def _cargar_config_laboratorios(self) -> dict[str, dict[str, list[str]]]:
         ruta_json = BASE_DIR / "config" / "laboratorios.json"
@@ -87,10 +150,10 @@ class DashboardPrincipal(QMainWindow):
         if ruta_estilos.exists():
             with open(ruta_estilos, "r", encoding="utf-8") as f:
                 self.setStyleSheet(f.read())
-            if hasattr(self, "console"):
+            if self._sesion_activa and hasattr(self, "console"):
                 self.agregar_log("Estilos visuales (styles.css) recargados.")
 
-    def _armar_interfaz(self) -> None:
+    def _armar_interfaz(self) -> QWidget:
         root = QWidget()
         layout_root = QHBoxLayout(root)
         layout_root.setContentsMargins(0, 0, 0, 0)
@@ -107,7 +170,7 @@ class DashboardPrincipal(QMainWindow):
         self.main_stack.addWidget(self._crear_vista_config())      # 3: Configuración del Sistema
 
         layout_root.addWidget(self.main_stack)
-        self.setCentralWidget(root)
+        return root
 
     def _crear_sidebar(self) -> QFrame:
         sidebar = QFrame()
@@ -148,38 +211,43 @@ class DashboardPrincipal(QMainWindow):
             self.nav_group.addButton(btn, stack_idx)
             layout.addWidget(btn)
 
-        layout.addSpacing(10)
-        btn_admin_labs = QPushButton("  Editar Salas / PCs")
-        btn_admin_labs.setProperty("class", "nav-btn")
-        btn_admin_labs.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_admin_labs.clicked.connect(self._abrir_admin_labs)
-        layout.addWidget(btn_admin_labs)
-
         layout.addStretch()
 
         box_user = QFrame()
         box_user.setStyleSheet(
-            "background-color: #0d121f; border: 1px solid #1e293b; border-radius: 6px; padding: 6px;"
+            "background-color: #0d121f; border: 1px solid #1e293b; border-radius: 8px; padding: 6px;"
         )
         lay_u = QVBoxLayout(box_user)
-        lay_u.setContentsMargins(6, 4, 6, 4)
+        lay_u.setContentsMargins(8, 6, 8, 8)
+        lay_u.setSpacing(6)
         lbl_op = QLabel(f"Operador: {self.usuario_actual.upper()}")
-        lbl_op.setStyleSheet("color: #00e5ff; font-size: 11px; font-weight: bold;")
+        lbl_op.setStyleSheet("color: #00e5ff; font-size: 11px; font-weight: bold; border: none; background: transparent;")
         lbl_buap = QLabel("Protección de Hardware BUAP")
-        lbl_buap.setStyleSheet("color: #64748b; font-size: 10px;")
+        lbl_buap.setStyleSheet("color: #64748b; font-size: 10px; border: none; background: transparent;")
         lay_u.addWidget(lbl_op)
         lay_u.addWidget(lbl_buap)
+
+        btn_logout = QPushButton("Cerrar sesión")
+        btn_logout.setProperty("class", "btn-secondary")
+        btn_logout.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_logout.clicked.connect(self._cerrar_sesion)
+        lay_u.addWidget(btn_logout)
+
         layout.addWidget(box_user)
 
         return sidebar
 
     def _toggle_sidebar(self) -> None:
+        if not self._sesion_activa or not hasattr(self, "sidebar_widget"):
+            return
         visible = not self.sidebar_widget.isVisible()
         self.sidebar_widget.setVisible(visible)
         if hasattr(self, "btn_toggle_left"):
             self.btn_toggle_left.setText("☰" if not visible else "◀ Menú")
 
     def _toggle_inspector(self) -> None:
+        if not self._sesion_activa or not hasattr(self, "inspector_widget"):
+            return
         visible = not self.inspector_widget.isVisible()
         self.inspector_widget.setVisible(visible)
         if hasattr(self, "btn_toggle_right"):
@@ -213,11 +281,8 @@ class DashboardPrincipal(QMainWindow):
 
         self.btn_toggle_left = QPushButton("◀ Menú")
         self.btn_toggle_left.setToolTip("Ocultar/Mostrar menú izquierdo (F2)")
+        self.btn_toggle_left.setProperty("class", "btn-secondary")
         self.btn_toggle_left.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_toggle_left.setStyleSheet(
-            "background-color: #111726; color: #94a3b8; border: 1px solid #1e293b; "
-            "border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 11px;"
-        )
         self.btn_toggle_left.clicked.connect(self._toggle_sidebar)
         header.addWidget(self.btn_toggle_left)
 
@@ -226,14 +291,14 @@ class DashboardPrincipal(QMainWindow):
         self._reconstruir_tabs_labs()
         header.addLayout(self.tabs_box)
 
-        btn_quick_lab = QPushButton("Salas")
-        btn_quick_lab.setToolTip("Agregar o quitar Salas, Filas y Equipos")
+        btn_quick_lab = QPushButton("+ Salas")
+        btn_quick_lab.setToolTip("Ir a Configuración → Salas y Equipos")
         btn_quick_lab.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_quick_lab.setStyleSheet(
             "background-color: #111726; color: #38bdf8; border: 1px dashed #1e3a5f; "
             "border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 11px;"
         )
-        btn_quick_lab.clicked.connect(self._abrir_admin_labs)
+        btn_quick_lab.clicked.connect(self._ir_a_config_topologia)
         header.addWidget(btn_quick_lab)
 
         header.addStretch()
@@ -260,18 +325,15 @@ class DashboardPrincipal(QMainWindow):
         pill_hb.setProperty("class", "kpi-pill")
         lay_h = QHBoxLayout(pill_hb)
         lay_h.setContentsMargins(8, 2, 8, 2)
-        lbl_hb = QLabel("● HUB TCP: ACTIVO")
-        lbl_hb.setStyleSheet("color: #00e5ff; font-size: 11px; font-weight: bold;")
-        lay_h.addWidget(lbl_hb)
+        self.lbl_hb = QLabel("● HUB TCP: INICIANDO...")
+        self.lbl_hb.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: bold;")
+        lay_h.addWidget(self.lbl_hb)
         header.addWidget(pill_hb)
 
         self.btn_toggle_right = QPushButton("Detalles ▶")
         self.btn_toggle_right.setToolTip("Ocultar/Mostrar detalles (F3)")
+        self.btn_toggle_right.setProperty("class", "btn-secondary")
         self.btn_toggle_right.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_toggle_right.setStyleSheet(
-            "background-color: #111726; color: #94a3b8; border: 1px solid #1e293b; "
-            "border-radius: 6px; padding: 6px 10px; font-weight: bold; font-size: 11px;"
-        )
         self.btn_toggle_right.clicked.connect(self._toggle_inspector)
         header.addWidget(self.btn_toggle_right)
 
@@ -306,9 +368,9 @@ class DashboardPrincipal(QMainWindow):
         for lab_nombre, filas in self.datos_laboratorios.items():
             scroll = QScrollArea()
             scroll.setWidgetResizable(True)
-            scroll.setStyleSheet("background: transparent; border: none;")
 
             contenedor_lab = QWidget()
+            contenedor_lab.setObjectName("ScrollContent")
             layout_filas = QVBoxLayout(contenedor_lab)
             layout_filas.setSpacing(12)
             layout_filas.setContentsMargins(0, 0, 8, 0)
@@ -356,7 +418,7 @@ class DashboardPrincipal(QMainWindow):
         self.lbl_insp_id.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         layout.addWidget(self.lbl_insp_id)
 
-        self.lbl_insp_os = QLabel("Agente OS: -")
+        self.lbl_insp_os = QLabel("Agente: -")
         self.lbl_insp_ubi = QLabel("Ubicación: -")
         self.lbl_insp_perif = QLabel("Periféricos USB: -")
         self.lbl_insp_status = QLabel("Nivel de Seguridad: -")
@@ -368,7 +430,7 @@ class DashboardPrincipal(QMainWindow):
         self.box_wmi = QFrame()
         self.box_wmi.setObjectName("WMIBox")
         lay_wmi = QVBoxLayout(self.box_wmi)
-        self.lbl_wmi_evento = QLabel("Monitor Hub: Escuchando eventos de agentes...")
+        self.lbl_wmi_evento = QLabel("Monitor Hub: Escuchando eventos reales de agentes...")
         self.lbl_wmi_evento.setStyleSheet("color: #94a3b8; font-size: 11px; font-family: 'Consolas', monospace;")
         self.lbl_wmi_evento.setWordWrap(True)
         lay_wmi.addWidget(self.lbl_wmi_evento)
@@ -390,25 +452,11 @@ class DashboardPrincipal(QMainWindow):
         layout.addStretch()
 
         self.btn_desactivar = QPushButton("Reconocer y Silenciar Alarma")
-        self.btn_desactivar.setStyleSheet(
-            "background-color: #be123c; color: white; font-weight: bold; padding: 9px; border-radius: 6px;"
-        )
+        self.btn_desactivar.setProperty("class", "btn-danger")
         self.btn_desactivar.setEnabled(False)
         self.btn_desactivar.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_desactivar.clicked.connect(self._desactivar_alerta_actual)
         layout.addWidget(self.btn_desactivar)
-
-        self.btn_simular = QPushButton("Simular Extracción USB (PC-04)")
-        self.btn_simular.setStyleSheet(
-            "background-color: #1e293b; color: #38bdf8; border: 1px solid #0284c7; padding: 8px; border-radius: 6px; font-weight: bold;"
-        )
-        self.btn_simular.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_simular.clicked.connect(
-            lambda: self.hub_thread.simular_evento_local(
-                "PC-04", "Teclado USB HID", "remove", "USB\\VID_046D&PID_C31C"
-            )
-        )
-        layout.addWidget(self.btn_simular)
 
         return panel
 
@@ -459,17 +507,15 @@ class DashboardPrincipal(QMainWindow):
         top.addWidget(lbl)
         top.addStretch()
 
-        btn_sim_timeout = QPushButton("Simular Corte de Red (PC-02)")
-        btn_sim_timeout.setStyleSheet(
-            "background-color: #d97706; color: white; padding: 7px 14px; border-radius: 5px; font-weight: bold;"
-        )
-        btn_sim_timeout.clicked.connect(partial(self._cambiar_estado_timeout, "PC-02"))
-        top.addWidget(btn_sim_timeout)
+        self.lbl_conexiones_hub = QLabel("Sockets conectados al Hub: 0")
+        self.lbl_conexiones_hub.setProperty("class", "status-pill")
+        self.lbl_conexiones_hub.setProperty("state", "info")
+        top.addWidget(self.lbl_conexiones_hub)
         layout.addLayout(top)
 
         self.tabla_red = QTableWidget(0, 5)
         self.tabla_red.setHorizontalHeaderLabels([
-            "Estación", "Laboratorio", "Fila", "Transporte", "Estado del Enlace"
+            "Estación", "Laboratorio", "Fila", "Enlace / Dirección", "Estado del Enlace"
         ])
         header = self.tabla_red.horizontalHeader()
         if header is not None:
@@ -488,74 +534,41 @@ class DashboardPrincipal(QMainWindow):
             self.tabla_red.setItem(idx, 0, QTableWidgetItem(pc_id))
             self.tabla_red.setItem(idx, 1, QTableWidgetItem(tarjeta.lab_nombre))
             self.tabla_red.setItem(idx, 2, QTableWidgetItem(tarjeta.fila))
-            self.tabla_red.setItem(idx, 3, QTableWidgetItem("TCP Socket (Hub)"))
-            estado_item = QTableWidgetItem("ONLINE (Protegido)" if tarjeta.estado == "OK" else tarjeta.estado)
-            estado_item.setForeground(QColor("#10b981" if tarjeta.estado == "OK" else "#f59e0b"))
+
+            peer = self.peers_por_pc.get(pc_id)
+            transporte = f"TCP ({peer})" if peer else "TCP Socket (en espera)"
+            self.tabla_red.setItem(idx, 3, QTableWidgetItem(transporte))
+
+            if tarjeta.estado == "ALERTA":
+                estado_txt = "ALERTA ACTIVA"
+                color = "#f43f5e"
+            elif tarjeta.estado == "TIMEOUT":
+                estado_txt = "DESCONECTADO"
+                color = "#f59e0b"
+            elif peer:
+                estado_txt = "CONECTADO (Protegido)"
+                color = "#10b981"
+            else:
+                estado_txt = "EN ESPERA DE AGENTE"
+                color = "#94a3b8"
+
+            estado_item = QTableWidgetItem(estado_txt)
+            estado_item.setForeground(QColor(color))
             self.tabla_red.setItem(idx, 4, estado_item)
 
     def _crear_vista_config(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(14)
-
-        lbl = QLabel("Configuración de Seguridad y Cuentas de Operador")
-        lbl.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        lbl.setStyleSheet("color: #00e5ff;")
-        layout.addWidget(lbl)
-
-        card_admin = QFrame()
-        card_admin.setObjectName("Inspector")
-        card_admin.setMaximumWidth(480)
-        lay_a = QVBoxLayout(card_admin)
-        lay_a.setContentsMargins(18, 18, 18, 18)
-        lay_a.setSpacing(10)
-
-        lbl_alta = QLabel("Dar de Alta Nuevo Operador / Administrador")
-        lbl_alta.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        lay_a.addWidget(lbl_alta)
-
-        self.cfg_new_user = QLineEdit()
-        self.cfg_new_user.setPlaceholderText("Nombre del nuevo usuario")
-        lay_a.addWidget(self.cfg_new_user)
-
-        self.cfg_new_pass = QLineEdit()
-        self.cfg_new_pass.setPlaceholderText("Contraseña (mínimo 6 caracteres)")
-        self.cfg_new_pass.setEchoMode(QLineEdit.EchoMode.Password)
-        lay_a.addWidget(self.cfg_new_pass)
-
-        btn_crear_op = QPushButton("Registrar Operador Autorizado")
-        btn_crear_op.setStyleSheet(
-            "background-color: #0284c7; color: white; padding: 9px; border-radius: 5px; font-weight: bold;"
+        self.vista_config = VistaConfiguracion(
+            usuario_actual=self.usuario_actual,
+            datos_laboratorios=self.datos_laboratorios,
+            hub_thread=None,
+            log_callback=self.agregar_log,
+            parent=self,
         )
-        btn_crear_op.clicked.connect(self._registrar_operador_desde_cfg)
-        lay_a.addWidget(btn_crear_op)
-
-        layout.addWidget(card_admin)
-        layout.addStretch()
-        return page
-
-    def _registrar_operador_desde_cfg(self) -> None:
-        u = self.cfg_new_user.text().strip()
-        p = self.cfg_new_pass.text().strip()
-        if len(u) < 3 or len(p) < 6:
-            QMessageBox.warning(self, "Datos inválidos", "El usuario requiere mínimo 3 caracteres y la contraseña 6.")
-            return
-        with open(RUTA_USUARIOS, "r", encoding="utf-8") as f:
-            usuarios = json.load(f)
-        if u in usuarios:
-            QMessageBox.warning(self, "Duplicado", "Ese operador ya existe.")
-            return
-        usuarios[u] = hash_password(p)
-        with open(RUTA_USUARIOS, "w", encoding="utf-8") as f:
-            json.dump(usuarios, f, indent=4)
-        self.cfg_new_user.clear()
-        self.cfg_new_pass.clear()
-        self.agregar_log(f"Nuevo operador '{u}' dado de alta por '{self.usuario_actual}'.")
-        QMessageBox.information(self, "Operador Creado", f"Cuenta '{u}' registrada correctamente.")
+        self.vista_config.topologia_modificada.connect(self._sincronizar_topologia_ui)
+        return self.vista_config
 
     # =========================================================================
-    # INTEGRACIÓN CON HUB SERVER Y ALERT_MANAGER DE TU COLABORADOR
+    # INTEGRACIÓN EN TIEMPO REAL CON HUB SERVER Y ALERT_MANAGER
     # =========================================================================
     def _cargar_logs_previos(self) -> None:
         if DEFAULT_LOG_PATH.exists():
@@ -569,6 +582,28 @@ class DashboardPrincipal(QMainWindow):
             except Exception:
                 pass
 
+    def _actualizar_estado_hub(self, activo: bool, detalle: str) -> None:
+        if activo:
+            self.lbl_hb.setText(f"● HUB TCP: {detalle}")
+            self.lbl_hb.setStyleSheet("color: #00e5ff; font-size: 11px; font-weight: bold;")
+        else:
+            self.lbl_hb.setText(f"● HUB TCP: {detalle}")
+            self.lbl_hb.setStyleSheet("color: #f43f5e; font-size: 11px; font-weight: bold;")
+
+    def _al_conectar_agente(self, _peer: str) -> None:
+        self.conexiones_activas += 1
+        self.lbl_conexiones_hub.setText(f"Sockets conectados al Hub: {self.conexiones_activas}")
+
+    def _al_desconectar_agente(self, pc_id: str, _peer: str) -> None:
+        self.conexiones_activas = max(0, self.conexiones_activas - 1)
+        self.lbl_conexiones_hub.setText(f"Sockets conectados al Hub: {self.conexiones_activas}")
+        if pc_id:
+            self.peers_por_pc.pop(pc_id, None)
+            tarjeta = self.tarjetas_map.get(pc_id)
+            if tarjeta is not None and tarjeta.estado != "ALERTA":
+                tarjeta.set_estado("TIMEOUT", "Conexión TCP cerrada por el agente")
+            self._poblar_tabla_red()
+
     def _actualizar_estado_canales(self, tiene_tg: bool, tiene_smtp: bool) -> None:
         self.tiene_tg_configurado = tiene_tg
         self.tiene_smtp_configurado = tiene_smtp
@@ -576,12 +611,26 @@ class DashboardPrincipal(QMainWindow):
         txt_smtp = "LISTO (.env)" if tiene_smtp else "SIN CONFIGURAR (.env)"
         self.badge_telegram.setText(f"  Bot Telegram: {txt_tg}")
         self.badge_email.setText(f"  Correo SMTP: {txt_smtp}")
+        color_tg = "#34d399" if tiene_tg else "#94a3b8"
+        color_smtp = "#34d399" if tiene_smtp else "#94a3b8"
+        self.badge_telegram.setStyleSheet(
+            f"background-color: #111624; color: {color_tg}; border-radius: 4px; padding: 6px; font-weight: bold;"
+        )
+        self.badge_email.setStyleSheet(
+            f"background-color: #111624; color: {color_smtp}; border-radius: 4px; padding: 6px; font-weight: bold;"
+        )
+        if hasattr(self, "vista_config"):
+            self.vista_config.actualizar_estado_canales(tiene_tg, tiene_smtp)
 
     def _procesar_reporte_hub(self, report: dict) -> None:
         pc_id = str(report.get("pc_name", "DESCONOCIDO")).strip().upper()
         device_name = str(report.get("device_name", "Periférico"))
         action = str(report.get("action", "change")).lower()
         sys_name = str(report.get("sys_name", "-"))
+        peer = str(report.get("peer", "")).strip()
+
+        if peer:
+            self.peers_por_pc[pc_id] = peer
 
         detalle = f"[{action.upper()}] {device_name} ({sys_name})"
 
@@ -592,10 +641,12 @@ class DashboardPrincipal(QMainWindow):
                     f"<span style='color:#f59e0b;'>Aviso: '{pc_id}' reportó extracción pero no está en el mapa actual (agrégalo en Salas).</span>"
                 )
         else:
+            tarjeta = self.tarjetas_map.get(pc_id)
+            if tarjeta is not None and tarjeta.estado == "TIMEOUT":
+                tarjeta.set_estado("OK", detalle)
             self.agregar_log(
                 f"<span style='color:#10b981;'>[EVENTO {action.upper()} en {pc_id}]</span> {device_name} ({sys_name})"
             )
-            tarjeta = self.tarjetas_map.get(pc_id)
             lab_nombre = tarjeta.lab_nombre if tarjeta else "Sala Externa"
             fila_idx = self.tabla_eventos.rowCount()
             self.tabla_eventos.insertRow(fila_idx)
@@ -605,6 +656,7 @@ class DashboardPrincipal(QMainWindow):
                 if col == 5:
                     item.setForeground(QColor("#10b981"))
                 self.tabla_eventos.setItem(fila_idx, col, item)
+            self._poblar_tabla_red()
 
     def _mostrar_resultado_alert_manager(self, pc_id: str, entregado: bool) -> None:
         color = "#10b981" if entregado else "#f43f5e"
@@ -625,23 +677,27 @@ class DashboardPrincipal(QMainWindow):
             f"AlertManager registró el incidente de <b>{pc_id}</b> en <i>alerts.log</i>."
         )
 
-    def _abrir_admin_labs(self) -> None:
-        dlg = DialogoAdminLabs(self.datos_laboratorios, self)
-        dlg.exec()
-        if dlg.cambios_realizados:
-            pcs_validas = {
-                pc
-                for filas in self.datos_laboratorios.values()
-                for lista in filas.values()
-                for pc in lista
-            }
-            self.pcs_en_alerta.intersection_update(pcs_validas)
+    def _sincronizar_topologia_ui(self) -> None:
+        pcs_validas = {
+            pc
+            for filas in self.datos_laboratorios.values()
+            for lista in filas.values()
+            for pc in lista
+        }
+        self.pcs_en_alerta.intersection_update(pcs_validas)
 
-            self._reconstruir_tabs_labs()
-            self._construir_vistas_laboratorios()
-            self._poblar_tabla_red()
-            self._actualizar_contadores_kpi()
-            self.agregar_log("Topología de Salas, Filas y PCs actualizada en laboratorios.json.")
+        self._reconstruir_tabs_labs()
+        self._construir_vistas_laboratorios()
+        self._poblar_tabla_red()
+        self._actualizar_contadores_kpi()
+        self.agregar_log("Topología de Salas, Filas y PCs actualizada en laboratorios.json.")
+
+    def _ir_a_config_topologia(self) -> None:
+        self.main_stack.setCurrentIndex(3)
+        btn_cfg = self.nav_group.button(3)
+        if btn_cfg is not None:
+            btn_cfg.setChecked(True)
+        self.vista_config.seleccionar_subpestana(0)
 
     def agregar_log(self, mensaje: str) -> None:
         ahora = datetime.now().strftime("%H:%M:%S")
@@ -656,16 +712,10 @@ class DashboardPrincipal(QMainWindow):
     def _cambiar_lab(self, nombre_lab: str, boton_presionado: QPushButton) -> None:
         for boton in self.btns_tabs.values():
             boton.setProperty("active", "false")
-            st = boton.style()
-            if st is not None:
-                st.unpolish(boton)
-                st.polish(boton)
+            repolir_widget(boton)
 
         boton_presionado.setProperty("active", "true")
-        st_btn = boton_presionado.style()
-        if st_btn is not None:
-            st_btn.unpolish(boton_presionado)
-            st_btn.polish(boton_presionado)
+        repolir_widget(boton_presionado)
 
         nombres = list(self.datos_laboratorios.keys())
         if nombre_lab in nombres:
@@ -680,8 +730,11 @@ class DashboardPrincipal(QMainWindow):
         if hasattr(self, "inspector_widget") and not self.inspector_widget.isVisible():
             self._toggle_inspector()
 
+        peer = self.peers_por_pc.get(pc_id)
         self.lbl_insp_id.setText(f"{pc_id} ({tarjeta.lab_nombre})")
-        self.lbl_insp_os.setText("Agente OS: Windows / Linux (pc_monitoring)")
+        self.lbl_insp_os.setText(
+            f"Agente: pc_monitoring ({peer})" if peer else "Agente: pc_monitoring (en espera)"
+        )
         self.lbl_insp_ubi.setText(f"Ubicación: {tarjeta.lab_nombre} • {tarjeta.fila}")
         self.lbl_insp_perif.setText("Periféricos vigilados: Teclado, Mouse, Monitor")
 
@@ -697,13 +750,6 @@ class DashboardPrincipal(QMainWindow):
             self.lbl_insp_status.setText("Nivel de Seguridad: ARMADO Y VERIFICADO")
             self.lbl_insp_status.setStyleSheet("color: #10b981; font-weight: bold;")
             self.btn_desactivar.setEnabled(False)
-
-    def _cambiar_estado_timeout(self, pc_id: str) -> None:
-        tarjeta = self.tarjetas_map.get(pc_id)
-        if tarjeta:
-            tarjeta.set_estado("TIMEOUT", "Pérdida de enlace TCP con el agente")
-            self._poblar_tabla_red()
-            self.agregar_log(f"<span style='color:#f59e0b;'>ADVERTENCIA: {pc_id} perdió conexión con el Hub.</span>")
 
     def reportar_evento_alerta(self, pc_id: str, clase_wmi: str, detalle: str) -> None:
         self.pcs_en_alerta.add(pc_id)
@@ -750,7 +796,7 @@ class DashboardPrincipal(QMainWindow):
         if not self.pcs_en_alerta:
             self.lbl_kpi_alerta.setText("● PERÍMETRO: SEGURO")
             self.lbl_kpi_alerta.setStyleSheet("color: #10b981; font-weight: bold;")
-            self.lbl_wmi_evento.setText("Monitor Hub: Escuchando eventos de agentes...")
+            self.lbl_wmi_evento.setText("Monitor Hub: Escuchando eventos reales de agentes...")
             self.lbl_wmi_evento.setStyleSheet("color: #94a3b8; font-size: 11px; font-family: 'Consolas', monospace;")
 
         for row in range(self.tabla_eventos.rowCount()):
@@ -776,6 +822,8 @@ class DashboardPrincipal(QMainWindow):
                 tarjeta.set_parpadeo(self.fase_parpadeo)
 
     def closeEvent(self, a0: QCloseEvent | None) -> None:
-        if hasattr(self, "hub_thread"):
+        self.timer_parpadeo.stop()
+        if self.hub_thread is not None:
             self.hub_thread.detener()
+            self.hub_thread = None
         super().closeEvent(a0)

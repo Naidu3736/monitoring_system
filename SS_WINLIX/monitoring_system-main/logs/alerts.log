@@ -24,3 +24,51 @@
 2026-09-24T04:02:27-0600 INFO Alerta enviada channel=EmailAlert device=PC_CCOX_XX
 2026-11-05T14:29:59-0600 INFO Alerta recibida device=PC-04 message=Acción 'remove' en el dispositivo 'Teclado USB HID/USB\VID_046D&PID_C31C'
 2026-11-05T14:29:59-0600 WARNING Alerta registrada sin canales de envío device=PC-04
+2026-11-23T07:31:50-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Mejorado (101 ó 102 teclas)/HID\VID_258A&PID_0012&MI_01&COL03\7&E8B988&0&0002'
+2026-11-23T07:31:50-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:31:50-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL01\7&E8B988&0&0000'
+2026-11-23T07:31:50-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:31:50-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL05\7&E8B988&0&0004'
+2026-11-23T07:31:50-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:31:50-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Dispositivo de entrada USB/USB\VID_258A&PID_0012&MI_00\6&1782EE59&2&0000'
+2026-11-23T07:31:50-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:31:56-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL01\7&E8B988&0&0000'
+2026-11-23T07:31:56-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:31:56-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL05\7&E8B988&0&0004'
+2026-11-23T07:31:56-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:31:56-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Dispositivo de entrada USB/USB\VID_258A&PID_0012&MI_00\6&1782EE59&2&0000'
+2026-11-23T07:31:56-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:31:57-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Mejorado (101 ó 102 teclas)/HID\VID_258A&PID_0012&MI_01&COL03\7&E8B988&0&0002'
+2026-11-23T07:31:57-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:32:15-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Mejorado (101 ó 102 teclas)/HID\VID_258A&PID_0012&MI_01&COL03\7&E8B988&0&0002'
+2026-11-23T07:32:15-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:32:15-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL01\7&E8B988&0&0000'
+2026-11-23T07:32:15-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:32:15-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL05\7&E8B988&0&0004'
+2026-11-23T07:32:15-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:32:15-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Dispositivo de entrada USB/USB\VID_258A&PID_0012&MI_00\6&1782EE59&2&0000'
+2026-11-23T07:32:15-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:32:22-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL01\7&E8B988&0&0000'
+2026-11-23T07:32:22-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:32:22-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL05\7&E8B988&0&0004'
+2026-11-23T07:32:22-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:32:22-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Dispositivo de entrada USB/USB\VID_258A&PID_0012&MI_00\6&1782EE59&2&0000'
+2026-11-23T07:32:22-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:32:23-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Mejorado (101 ó 102 teclas)/HID\VID_258A&PID_0012&MI_01&COL03\7&E8B988&0&0002'
+2026-11-23T07:32:23-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:33:17-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Mejorado (101 ó 102 teclas)/HID\VID_258A&PID_0012&MI_01&COL03\7&E8B988&0&0002'
+2026-11-23T07:33:17-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:33:18-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL01\7&E8B988&0&0000'
+2026-11-23T07:33:18-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:33:18-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL05\7&E8B988&0&0004'
+2026-11-23T07:33:18-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:33:18-0600 INFO Alerta recibida device=PC-01 message=Acción 'remove' en el dispositivo 'Dispositivo de entrada USB/USB\VID_258A&PID_0012&MI_00\6&1782EE59&2&0000'
+2026-11-23T07:33:18-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:33:20-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Mejorado (101 ó 102 teclas)/HID\VID_258A&PID_0012&MI_01&COL03\7&E8B988&0&0002'
+2026-11-23T07:33:20-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:33:22-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL01\7&E8B988&0&0000'
+2026-11-23T07:33:22-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:33:22-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Mouse compatible con HID/HID\VID_258A&PID_0012&MI_01&COL05\7&E8B988&0&0004'
+2026-11-23T07:33:22-0600 WARNING Alerta registrada sin canales de envío device=PC-01
+2026-11-23T07:33:22-0600 INFO Alerta recibida device=PC-01 message=Acción 'add' en el dispositivo 'Dispositivo de entrada USB/USB\VID_258A&PID_0012&MI_00\6&1782EE59&2&0000'
+2026-11-23T07:33:22-0600 WARNING Alerta registrada sin canales de envío device=PC-01
