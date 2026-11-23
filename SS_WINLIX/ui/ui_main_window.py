@@ -8,8 +8,8 @@ from PyQt6.QtWidgets import (
     QStackedWidget, QButtonGroup, QTableWidget, QTableWidgetItem,
     QHeaderView
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont, QShortcut, QKeySequence, QColor, QCloseEvent
+from PyQt6.QtCore import Qt, QTimer, QPoint
+from PyQt6.QtGui import QFont, QShortcut, QKeySequence, QColor, QCloseEvent, QMouseEvent
 
 from ui.card_pc import TarjetaPC
 from ui.config_view import VistaConfiguracion
@@ -20,12 +20,91 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 RUTA_PREFERENCIAS = BASE_DIR / "config" / "preferencias.json"
 
 
+class BarraVentana(QFrame):
+    """Barra integrada minimalista sin marco nativo de Windows."""
+
+    def __init__(self, ventana: QMainWindow) -> None:
+        super().__init__(ventana)
+        self._ventana = ventana
+        self._drag_pos: QPoint | None = None
+        self.setObjectName("WindowBar")
+        self.setFixedHeight(32)
+
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(14, 0, 4, 0)
+        lay.setSpacing(2)
+
+        self.lbl_titulo = QLabel("SAPPHIRE SOC")
+        self.lbl_titulo.setProperty("class", "window-bar-title")
+        lay.addWidget(self.lbl_titulo)
+        lay.addStretch(1)
+
+        btn_min = QPushButton("—")
+        btn_min.setProperty("class", "win-ctrl")
+        btn_min.setToolTip("Minimizar")
+        btn_min.setFixedSize(40, 28)
+        btn_min.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_min.clicked.connect(self._ventana.showMinimized)
+        lay.addWidget(btn_min)
+
+        self.btn_max = QPushButton("❐")
+        self.btn_max.setProperty("class", "win-ctrl")
+        self.btn_max.setToolTip("Restaurar / Maximizar (F11 pantalla completa)")
+        self.btn_max.setFixedSize(40, 28)
+        self.btn_max.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_max.clicked.connect(self._alternar_maximizar)
+        lay.addWidget(self.btn_max)
+
+        btn_close = QPushButton("✕")
+        btn_close.setProperty("class", "win-ctrl-close")
+        btn_close.setToolTip("Cerrar")
+        btn_close.setFixedSize(42, 28)
+        btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_close.clicked.connect(self._ventana.close)
+        lay.addWidget(btn_close)
+
+    def set_titulo(self, texto: str) -> None:
+        self.lbl_titulo.setText(texto)
+
+    def actualizar_icono_max(self) -> None:
+        es_max = self._ventana.isMaximized() or self._ventana.isFullScreen()
+        self.btn_max.setText("❐" if es_max else "□")
+
+    def _alternar_maximizar(self) -> None:
+        if self._ventana.isFullScreen() or self._ventana.isMaximized():
+            self._ventana.showNormal()
+        else:
+            self._ventana.showMaximized()
+        self.actualizar_icono_max()
+
+    def mouseDoubleClickEvent(self, a0: QMouseEvent | None) -> None:
+        if a0 is not None and a0.button() == Qt.MouseButton.LeftButton:
+            self._alternar_maximizar()
+        super().mouseDoubleClickEvent(a0)
+
+    def mousePressEvent(self, a0: QMouseEvent | None) -> None:
+        if a0 is not None and a0.button() == Qt.MouseButton.LeftButton:
+            if not (self._ventana.isMaximized() or self._ventana.isFullScreen()):
+                self._drag_pos = a0.globalPosition().toPoint() - self._ventana.frameGeometry().topLeft()
+        super().mousePressEvent(a0)
+
+    def mouseMoveEvent(self, a0: QMouseEvent | None) -> None:
+        if a0 is not None and self._drag_pos is not None and (a0.buttons() & Qt.MouseButton.LeftButton):
+            self._ventana.move(a0.globalPosition().toPoint() - self._drag_pos)
+        super().mouseMoveEvent(a0)
+
+    def mouseReleaseEvent(self, a0: QMouseEvent | None) -> None:
+        self._drag_pos = None
+        super().mouseReleaseEvent(a0)
+
+
 class DashboardPrincipal(QMainWindow):
     def __init__(self, usuario_actual: str | None = None) -> None:
         super().__init__()
         self.usuario_actual: str = usuario_actual or ""
         self.tema_actual: str = self._cargar_tema_preferido()
-        self.setWindowTitle("SAPPHIRE SOC — Autenticación de Seguridad (BUAP)")
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint)
+        self.setWindowTitle("SAPPHIRE SOC — Seguridad de Hardware (BUAP)")
         self.resize(1360, 780)
         self.setMinimumSize(1024, 640)
 
@@ -43,16 +122,26 @@ class DashboardPrincipal(QMainWindow):
         self.hub_thread: HubServerThread | None = None
         self.dashboard_root: QWidget | None = None
 
-        # Stack principal: 0 = Pantalla de Login integrada, 1 = Dashboard
+        # Contenedor raíz: barra integrada minimalista + stack principal (0 = Login, 1 = Dashboard)
+        shell = QWidget()
+        shell_lay = QVBoxLayout(shell)
+        shell_lay.setContentsMargins(0, 0, 0, 0)
+        shell_lay.setSpacing(0)
+
+        self.barra_ventana = BarraVentana(self)
+        shell_lay.addWidget(self.barra_ventana)
+
         self.app_stack = QStackedWidget()
         self.vista_login = VistaLogin(self)
         self.vista_login.autenticado.connect(self._al_iniciar_sesion)
         self.app_stack.addWidget(self.vista_login)
-        self.setCentralWidget(self.app_stack)
+        shell_lay.addWidget(self.app_stack, stretch=1)
+
+        self.setCentralWidget(shell)
 
         self.cargar_estilos()
 
-        # Atajos globales: F2 (Menú Izquierdo), F3 (Detalles Derecho), F5 (Estilos)
+        # Atajos globales: F2 (Menú), F3 (Detalles), F5 (Estilos), F11 (Pantalla completa)
         self.shortcut_sidebar = QShortcut(QKeySequence("F2"), self)
         self.shortcut_sidebar.activated.connect(self._toggle_sidebar)
 
@@ -62,6 +151,9 @@ class DashboardPrincipal(QMainWindow):
         self.shortcut_reload = QShortcut(QKeySequence("F5"), self)
         self.shortcut_reload.activated.connect(self.cargar_estilos)
 
+        self.shortcut_fullscreen = QShortcut(QKeySequence("F11"), self)
+        self.shortcut_fullscreen.activated.connect(self._toggle_pantalla_completa)
+
         self.timer_parpadeo = QTimer(self)
         self.timer_parpadeo.timeout.connect(self._toggle_parpadeo)
 
@@ -69,6 +161,13 @@ class DashboardPrincipal(QMainWindow):
             self._al_iniciar_sesion(usuario_actual)
         else:
             self.vista_login.reiniciar_formulario()
+
+    def _toggle_pantalla_completa(self) -> None:
+        if self.isFullScreen():
+            self.showMaximized()
+        else:
+            self.showFullScreen()
+        self.barra_ventana.actualizar_icono_max()
 
     # =========================================================================
     # GESTIÓN DE TEMAS (OSCURO NEUTRO / CLARO NEUTRO)
@@ -130,9 +229,7 @@ class DashboardPrincipal(QMainWindow):
     def _al_iniciar_sesion(self, usuario: str) -> None:
         self.usuario_actual = usuario
         self._sesion_activa = True
-        self.setWindowTitle(
-            f"Monitoreo de Seguridad de Hardware (BUAP) - Operador: {self.usuario_actual}"
-        )
+        self.barra_ventana.set_titulo(f"SAPPHIRE SOC  •  Operador: {self.usuario_actual.upper()}")
 
         if self.dashboard_root is not None:
             self.app_stack.removeWidget(self.dashboard_root)
@@ -177,7 +274,7 @@ class DashboardPrincipal(QMainWindow):
 
         self._sesion_activa = False
         self.usuario_actual = ""
-        self.setWindowTitle("SAPPHIRE SOC — Autenticación de Seguridad (BUAP)")
+        self.barra_ventana.set_titulo("SAPPHIRE SOC")
         self.app_stack.setCurrentWidget(self.vista_login)
         self.vista_login.reiniciar_formulario()
 
@@ -415,6 +512,9 @@ class DashboardPrincipal(QMainWindow):
         for lab_nombre, filas in self.datos_laboratorios.items():
             scroll = QScrollArea()
             scroll.setWidgetResizable(True)
+            vp = scroll.viewport()
+            if vp is not None:
+                vp.setAutoFillBackground(False)
 
             contenedor_lab = QWidget()
             contenedor_lab.setObjectName("ScrollContent")

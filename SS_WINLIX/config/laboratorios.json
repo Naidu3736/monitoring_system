@@ -1,3 +1,18 @@
 {
-    "LABORATORIO 01": {}
+    "LABORATORIO 01": {
+        "FILA 1": [
+            "PC-01",
+            "PC-02",
+            "PC-03",
+            "PC-04",
+            "PC-05",
+            "PC-06"
+        ],
+        "FILA 2": [
+            "PC_01"
+        ]
+    },
+    "CCO4_102": {
+        "FILA A": []
+    }
 }

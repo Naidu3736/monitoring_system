@@ -152,6 +152,9 @@ class VistaConfiguracion(QWidget):
     def _crear_tab_operadores(self) -> QWidget:
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        vp = scroll.viewport()
+        if vp is not None:
+            vp.setAutoFillBackground(False)
 
         contenedor = QWidget()
         contenedor.setObjectName("ScrollContent")
@@ -453,6 +456,9 @@ class VistaConfiguracion(QWidget):
     def _crear_tab_alertas(self) -> QWidget:
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        vp = scroll.viewport()
+        if vp is not None:
+            vp.setAutoFillBackground(False)
 
         contenedor = QWidget()
         contenedor.setObjectName("ScrollContent")
@@ -766,6 +772,9 @@ class VistaConfiguracion(QWidget):
     def _crear_tab_apariencia(self) -> QWidget:
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        vp = scroll.viewport()
+        if vp is not None:
+            vp.setAutoFillBackground(False)
 
         contenedor = QWidget()
         contenedor.setObjectName("ScrollContent")
@@ -797,18 +806,18 @@ class VistaConfiguracion(QWidget):
 
         # Opción 1: Modo Oscuro
         self.card_tema_dark, self.pill_tema_dark, self.btn_tema_dark = self._crear_tarjeta_tema(
-            titulo="☾  Modo Oscuro",
-            descripcion="Superficies en carbón neutro diseñadas para reducir la fatiga visual en monitoreo continuo.",
-            colores_muestra=("#111113", "#18181b", "#26262b", "#f4f4f5"),
+            titulo="☾  Modo Oscuro Translúcido",
+            descripcion="Fondo azulado esmerilado con paneles flotantes en carbón oscuro y acento índigo suave.",
+            colores_muestra=("#0f2031", "#1f2024", "#292b31", "#5b5fc7"),
             clave_tema="dark",
         )
         opciones.addWidget(self.card_tema_dark, stretch=1)
 
         # Opción 2: Modo Claro
         self.card_tema_light, self.pill_tema_light, self.btn_tema_light = self._crear_tarjeta_tema(
-            titulo="☀  Modo Claro",
-            descripcion="Fondo gris suave y paneles blancos de alto contraste para espacios bien iluminados.",
-            colores_muestra=("#f4f4f5", "#ffffff", "#e4e4e7", "#18181b"),
+            titulo="☀  Modo Claro Translúcido",
+            descripcion="Bruma azulada clara con tarjetas blancas translúcidas y acento índigo suave.",
+            colores_muestra=("#dce8f5", "#ffffff", "#eef3f9", "#5b5fc7"),
             clave_tema="light",
         )
         opciones.addWidget(self.card_tema_light, stretch=1)

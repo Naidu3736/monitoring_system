@@ -5,5 +5,5 @@ from ui.ui_main_window import DashboardPrincipal
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     ventana = DashboardPrincipal()
-    ventana.show()
+    ventana.showMaximized()
     sys.exit(app.exec())

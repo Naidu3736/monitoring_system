@@ -97,9 +97,9 @@ class VistaLogin(QWidget):
         b_lay.addSpacing(10)
 
         caracteristicas = [
-            "●  Supervisión en tiempo real de periféricos conectados en laboratorio.",
-            "●  Recepción centralizada vía Hub TCP para agentes Windows y Linux.",
-            "●  Despacho directo de alertas por Telegram, SMTP y bitácora forense.",
+            "●  Supervisión en tiempo real de periféricos conectados en laboratorios.",
+            "●  Recepción centralizada para agentes Windows y Linux.",
+            "●  Despacho directo de alertas por Telegram, Mail y bitácora forense.",
         ]
         for texto in caracteristicas:
             lbl_f = QLabel(texto)
@@ -183,7 +183,7 @@ class VistaLogin(QWidget):
         f_lay.addStretch(1)
 
         lbl_ayuda = QLabel(
-            "Si desconoces tus credenciales, contacta al administrador del sistema."
+            "Si desconoces tus credenciales, contacta al supervisor del sistema."
         )
         lbl_ayuda.setProperty("class", "muted-hint")
         lbl_ayuda.setWordWrap(True)
